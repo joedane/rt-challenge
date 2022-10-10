@@ -353,10 +353,6 @@ impl<T: Float> Matrix<T> {
         self.storage[row * self.size + col] = val;
     }
 
-    fn apply_transformation(&self, xf: Matrix<T>) -> Matrix<T> {
-        self * xf
-    }
-
     fn make_translation<P: Into<T>>(x: P, y: P, z: P) -> Matrix<T> {
         let mut m = Matrix::identity();
         m.set(0, 3, x.into());
@@ -467,10 +463,14 @@ impl<T: Float> std::ops::Mul<Point<T>> for &Matrix<T> {
     }
 }
 
+<<<<<<< HEAD
 impl<T: Float> std::ops::Mul for &Matrix<T> {
+=======
+impl<T: Float + AddAssign> std::ops::Mul for &Matrix<T> {
+>>>>>>> 5f90222 (Revised matrix multiplication seems to be working)
     type Output = Matrix<T>;
 
-    fn mul(self, rhs: Matrix<T>) -> Self::Output {
+    fn mul(self, rhs: Self) -> Self::Output {
         let mut v = vec![];
         for row in 0..self.size {
             for col in 0..self.size {
@@ -497,6 +497,7 @@ impl<T: Float> TransformBuilder<T> {
         }
     }
 
+<<<<<<< HEAD
     pub fn translate<P: Into<T>>(self, x: P, y: P, z: P) -> Self {
         TransformBuilder {
             xf: &Matrix::make_translation(x, y, z) * &self.xf,
@@ -530,6 +531,16 @@ impl<T: Float> TransformBuilder<T> {
     pub fn rotation_z<P: Into<T>>(self, r: P) -> Self {
         TransformBuilder {
             xf: &Matrix::make_rotation_z(r) * &self.xf,
+=======
+    fn translate<P: Into<T>>(self, x: P, y: P, z: P) -> Self {
+        let m = Matrix::make_translation(x, y, z);
+        if let Some(xf) = self.xf {
+            TransformationBuilder {
+                xf: Some(&xf * &m) 
+            }   
+        } else {
+            TransformationBuilder { xf: Some(m) }
+>>>>>>> 5f90222 (Revised matrix multiplication seems to be working)
         }
     }
 
@@ -655,7 +666,7 @@ mod test {
         let m3: Matrix<f64> = Matrix::new(vec![
             20., 22., 50., 48., 44., 54., 114., 108., 40., 58., 110., 102., 16., 26., 46., 42.,
         ]);
-        assert_eq!(m3, &m1 * m2)
+        assert_eq!(m3, &m1 * &m2)
     }
 
     #[test]
@@ -807,9 +818,9 @@ mod test {
             6, -2, 0, 5,
         ]);
 
-        let c = &a * b;
+        let c = &a * &b;
         let bi = b.invert();
-        let check_a = &c * bi;
+        let check_a = &c * &bi;
         check_matrix(check_a, a).unwrap();
     }
 
