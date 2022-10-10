@@ -142,7 +142,6 @@ impl<T: Float> std::ops::Sub<Vector<T>> for Point<T> {
     }
 }
 
-
 impl<T: Float> Vector<T> {
     pub fn new<P: Into<T>>(x: P, y: P, z: P) -> Self {
         Self {
@@ -250,6 +249,9 @@ where
     }
 }
 
+/**
+ * A 4x4 generic Matrix
+ */
 #[derive(Debug)]
 pub struct Matrix<T> {
     size: usize,
@@ -349,6 +351,10 @@ impl<T: Float> Matrix<T> {
 
     fn set(&mut self, row: usize, col: usize, val: T) {
         self.storage[row * self.size + col] = val;
+    }
+
+    fn apply_transformation(&self, xf: Matrix<T>) -> Matrix<T> {
+        self * xf
     }
 
     fn make_translation<P: Into<T>>(x: P, y: P, z: P) -> Matrix<T> {
@@ -464,7 +470,7 @@ impl<T: Float> std::ops::Mul<Point<T>> for &Matrix<T> {
 impl<T: Float> std::ops::Mul for &Matrix<T> {
     type Output = Matrix<T>;
 
-    fn mul(self, rhs: Self) -> Self::Output {
+    fn mul(self, rhs: Matrix<T>) -> Self::Output {
         let mut v = vec![];
         for row in 0..self.size {
             for col in 0..self.size {
@@ -649,7 +655,7 @@ mod test {
         let m3: Matrix<f64> = Matrix::new(vec![
             20., 22., 50., 48., 44., 54., 114., 108., 40., 58., 110., 102., 16., 26., 46., 42.,
         ]);
-        assert_eq!(m3, &m1 * &m2)
+        assert_eq!(m3, &m1 * m2)
     }
 
     #[test]
@@ -801,9 +807,9 @@ mod test {
             6, -2, 0, 5,
         ]);
 
-        let c = &a * &b;
+        let c = &a * b;
         let bi = b.invert();
-        let check_a = &c * &bi;
+        let check_a = &c * bi;
         check_matrix(check_a, a).unwrap();
     }
 
