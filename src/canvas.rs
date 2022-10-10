@@ -31,7 +31,7 @@ impl<const W: usize, const H: usize> Canvas<W, H> {
             let c = self.get(x as usize, y as usize);
             *p = Rgb([c.red, c.green, c.blue]);
         }
-        buf.save(p);
+        buf.save(p).unwrap();
     } 
 }
 

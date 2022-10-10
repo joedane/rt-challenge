@@ -7,5 +7,7 @@ edition = "2021"
 
 [dependencies]
 num-traits = "0.2.15"
+num-integer = "0.1"
 image = "0.24"
 itertools = "0.10.4"
+approx = "0.5"
