@@ -1,5 +1,6 @@
+use crate::color::Color;
 use crate::vec::{Matrix, Point, Vector};
-use num_traits::Float;
+use num_traits::{Float, FromPrimitive};
 use std::cmp::{Eq, Ord, PartialEq, PartialOrd, Reverse};
 use std::collections::BinaryHeap;
 use std::ops::{Add, AddAssign};
@@ -44,15 +45,29 @@ pub trait Shape<T: Float + std::ops::AddAssign> {
     }
 }
 
-pub trait Material {}
+pub struct Material<T: Float> {
+    pub color: Color,
+    pub ambient: T,
+    pub diffuse: T,
+    pub specular: T,
+    pub shininess: T,
+}
 
-struct DefaultMaterial;
+impl<T: Float + FromPrimitive> Default for Material<T> {
+    fn default() -> Self {
+        Material {
+            color: Color::new(1., 1., 1.),
+            ambient: <T as FromPrimitive>::from_f64(0.1).unwrap(),
+            diffuse: <T as FromPrimitive>::from_f64(0.9).unwrap(),
+            specular: <T as FromPrimitive>::from_f64(0.9).unwrap(),
+            shininess: <T as FromPrimitive>::from_f64(200.0).unwrap(),
+        }
+    }
+}
 
-impl Material for DefaultMaterial {}
-
-pub struct Object<T> {
+pub struct Object<T: Float> {
     shape: Box<dyn Shape<T>>,
-    material: Box<dyn Material>,
+    material: Material<T>,
 }
 
 struct Intersection<'a, T: Float + AddAssign> {
@@ -315,7 +330,7 @@ mod test {
                 .scaling(1., 0.5, 1.)
                 .finish(),
         );
-        let r2 = 2.0.sqrt()/2.0;
+        let r2 = 2.0.sqrt() / 2.0;
 
         let n = s.normal(&Point::new(0., r2, -r2));
         assert_relative_eq!(n, Vector::new(0., 0.97014, -0.24254), epsilon = 0.00001);

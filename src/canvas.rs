@@ -9,7 +9,7 @@ pub struct Canvas<const W: usize, const H: usize> {
 impl<const W: usize, const H: usize> Canvas<W, H> {
 
     fn new() -> Self {
-        Canvas { storage: [[Color::new(0,0,0); W]; H]}    
+        Canvas { storage: [[Color::new(0.,0.,0.); W]; H]}    
     }
 
     fn foo(&self) {
@@ -29,7 +29,7 @@ impl<const W: usize, const H: usize> Canvas<W, H> {
         let mut buf = ImageBuffer::new(W as u32, H as u32);
         for (x, y, p) in buf.enumerate_pixels_mut() {
             let c = self.get(x as usize, y as usize);
-            *p = Rgb([c.red, c.green, c.blue]);
+            *p = Rgb([c.red as u8, c.green as u8, c.blue as u8]);
         }
         buf.save(p).unwrap();
     } 
@@ -45,7 +45,7 @@ mod test {
         let mut c: Canvas<100, 200> = Canvas::new();
         for i in 0..100 {
             for j in 0..200 {
-                c.set(i, j, Color::new(j as u8, 0, 0));
+                c.set(i, j, Color::new(j as f32, 0., 0.));
             }
         }
         c.foo();
