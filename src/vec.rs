@@ -4,7 +4,6 @@ use num_integer::Roots;
 use num_traits::float::Float;
 use std::{fmt::Display, ops::AddAssign};
 
-
 #[derive(Debug, Copy, Clone)]
 pub struct Point<T: Float> {
     x: T,
@@ -159,6 +158,13 @@ impl<T: Float> Vector<T> {
             z: z.into(),
         }
     }
+
+    pub fn reflect(&self, n: &Vector<T>) -> Self {
+        let dot_in_normal = Vector::dot(*self, *n);
+        let dot_in_normal = dot_in_normal + dot_in_normal;
+        
+        *self - (*n * dot_in_normal)
+    }
 }
 
 impl<T: Float> std::cmp::PartialEq for Vector<T> {
@@ -267,7 +273,8 @@ impl<T: Float + std::ops::AddAssign> Matrix<T> {
         m
     }
 
-    fn identity(size: usize) -> Self {
+    pub fn identity() -> Self {
+        let size: usize = 4;
         let mut v = vec![T::zero(); size * size];
         for i in 0..size {
             *(v.get_mut((i % size) + i * size).unwrap()) = T::one();
@@ -275,7 +282,7 @@ impl<T: Float + std::ops::AddAssign> Matrix<T> {
         Matrix::new(v)
     }
 
-    fn transpose(&self) -> Self {
+    pub fn transpose(&self) -> Self {
         let mut v = vec![T::zero(); self.storage.len()];
         for row in 0..self.size {
             for col in 0..self.size {
@@ -300,7 +307,7 @@ impl<T: Float + std::ops::AddAssign> Matrix<T> {
         Matrix::new(v)
     }
 
-    fn determinant(&self) -> T {
+    pub fn determinant(&self) -> T {
         if self.size == 2 {
             return self.get(0, 0) * self.get(1, 1) - self.get(0, 1) * self.get(1, 0);
         } else {
@@ -328,7 +335,7 @@ impl<T: Float + std::ops::AddAssign> Matrix<T> {
         }
     }
 
-    fn invert(&self) -> Matrix<T> {
+    pub fn invert(&self) -> Matrix<T> {
         let det = self.determinant();
         if det == T::zero() {
             panic!();
@@ -352,7 +359,7 @@ impl<T: Float + std::ops::AddAssign> Matrix<T> {
     }
 
     fn make_translation<P: Into<T>>(x: P, y: P, z: P) -> Matrix<T> {
-        let mut m = Matrix::identity(4);
+        let mut m = Matrix::identity();
         m.set(0, 3, x.into());
         m.set(1, 3, y.into());
         m.set(2, 3, z.into());
@@ -360,7 +367,7 @@ impl<T: Float + std::ops::AddAssign> Matrix<T> {
     }
 
     fn make_scaling<P: Into<T>>(x: P, y: P, z: P) -> Matrix<T> {
-        let mut m = Matrix::identity(4);
+        let mut m = Matrix::identity();
         m.set(0, 0, x.into());
         m.set(1, 1, y.into());
         m.set(2, 2, z.into());
@@ -368,7 +375,7 @@ impl<T: Float + std::ops::AddAssign> Matrix<T> {
     }
 
     fn make_rotation_x<P: Into<T>>(r: P) -> Matrix<T> {
-        let mut m = Matrix::identity(4);
+        let mut m = Matrix::identity();
         let r: T = r.into();
         m.set(1, 1, r.cos());
         m.set(2, 2, r.cos());
@@ -378,7 +385,7 @@ impl<T: Float + std::ops::AddAssign> Matrix<T> {
     }
 
     fn make_rotation_y<P: Into<T>>(r: P) -> Matrix<T> {
-        let mut m = Matrix::identity(4);
+        let mut m = Matrix::identity();
         let r: T = r.into();
         m.set(0, 0, r.cos());
         m.set(0, 2, r.sin());
@@ -388,7 +395,7 @@ impl<T: Float + std::ops::AddAssign> Matrix<T> {
     }
 
     fn make_rotation_z<P: Into<T>>(r: P) -> Matrix<T> {
-        let mut m = Matrix::identity(4);
+        let mut m = Matrix::identity();
         let r: T = r.into();
         m.set(0, 0, r.cos());
         m.set(0, 1, -r.sin());
@@ -398,7 +405,7 @@ impl<T: Float + std::ops::AddAssign> Matrix<T> {
     }
 
     fn make_shearing<P: Into<T>>(xy: P, xz: P, yx: P, yz: P, zx: P, zy: P) -> Matrix<T> {
-        let mut m = Matrix::identity(4);
+        let mut m = Matrix::identity();
         m.set(0, 1, xy.into());
         m.set(0, 2, xz.into());
         m.set(1, 0, yx.into());
@@ -407,7 +414,6 @@ impl<T: Float + std::ops::AddAssign> Matrix<T> {
         m.set(2, 1, zy.into());
         m
     }
-
 }
 
 impl<T: Float + Display> Display for Matrix<T> {
@@ -479,11 +485,71 @@ impl<T: Float + AddAssign> std::ops::Mul for &Matrix<T> {
         Matrix::new(v)
     }
 }
+
+pub struct TransformBuilder<T: Float + std::ops::AddAssign> {
+    xf: Matrix<T>,
+}
+
+impl<T: Float + std::ops::AddAssign> TransformBuilder<T> {
+    
+    pub fn new() -> Self {
+        TransformBuilder {
+            xf: Matrix::identity(),
+        }
+    }
+
+    pub fn translate<P: Into<T>>(self, x: P, y: P, z: P) -> Self {
+        TransformBuilder {
+            xf: &Matrix::make_translation(x.into(), y.into(), z.into()) * &self.xf,
+        }
+    }
+
+    pub fn scaling<P: Into<T>>(self, x: P, y: P, z: P) -> Self {
+        TransformBuilder {
+            xf: &Matrix::make_scaling(x.into(), y.into(), z.into()) * &self.xf,
+        }
+    }
+
+    pub fn shearing<P: Into<T>>(self, xy: P, xz: P, yx: P, yz: P, zx: P, zy: P) -> Self {
+        TransformBuilder {
+            xf: &Matrix::make_shearing(
+                xy.into(),
+                xz.into(),
+                yx.into(),
+                yz.into(),
+                zx.into(),
+                zy.into(),
+            ) * &self.xf,
+        }
+    }
+
+    pub fn rotation_x<P: Into<T>>(self, r: P) -> Self {
+        TransformBuilder {
+            xf: &Matrix::make_rotation_x(r.into()) * &self.xf,
+        }
+    }
+
+    pub fn rotation_y<P: Into<T>>(self, r: P) -> Self {
+        TransformBuilder {
+            xf: &Matrix::make_rotation_y(r.into()) * &self.xf,
+        }
+    }
+
+    pub fn rotation_z<P: Into<T>>(self, r: P) -> Self {
+        TransformBuilder {
+            xf: &Matrix::make_rotation_z(r.into()) * &self.xf,
+        }
+    }
+
+    pub fn finish(self) -> Matrix<T> {
+        self.xf
+    }
+}
 #[cfg(test)]
 mod test {
-    use num_traits::Inv;
-    use approx::assert_relative_eq;
     use super::*;
+    use approx::assert_relative_eq;
+    use num_traits::Inv;
 
     #[test]
     fn test_eq1() {
@@ -573,7 +639,6 @@ mod test {
 
         assert_eq!(Vector::cross(v1, v2), Vector::<f32>::new(-1., 2., -1.));
         assert_eq!(Vector::cross(v2, v1), Vector::<f32>::new(1., -2., 1.));
-
     }
 
     #[test]
@@ -611,12 +676,12 @@ mod test {
         assert_eq!(p_check, &m * p);
 
         let v: Vector<f64> = Vector::new(1., 2., 3.);
-        assert_eq!(v, &Matrix::identity(4) * v);
+        assert_eq!(v, &Matrix::identity() * v);
     }
 
     #[test]
     fn test_identity() {
-        let m: Matrix<f64> = Matrix::identity(4);
+        let m: Matrix<f64> = Matrix::identity();
         assert_eq!(
             m,
             Matrix::new(vec![
@@ -799,7 +864,6 @@ mod test {
         let p: Point<f64> = Point::new(0, 1, 0);
         assert_relative_eq!(&half * p, Point::<f64>::new(-s2, s2, 0.));
         assert_relative_eq!(&full * p, Point::<f64>::new(-1, 0, 0));
-
     }
 
     #[test]
@@ -827,6 +891,28 @@ mod test {
         let x: Matrix<f64> = Matrix::make_shearing(0, 0, 0, 0, 0, 1);
         let p: Point<f64> = Point::new(2, 3, 4);
         assert_eq!(&x * p, Point::<f64>::new(2, 3, 7));
+    }
 
+    #[test]
+    fn test_builder() {
+        let xf: Matrix<f64> = TransformBuilder::new()
+            .rotation_x(std::f64::consts::PI / 2.)
+            .scaling(5, 5, 5)
+            .translate(10, 5, 7)
+            .finish();
+        let p: Point<f64> = Point::new(1, 0, 1);
+        assert_eq!(&xf * p, Point::<f64>::new(15, 0, 7));
+    }
+
+    #[test]
+    fn test_reflect() {
+        let v: Vector<f64> = Vector::new(1, -1, 0);
+        let n: Vector<f64> = Vector::new(0, 1, 0);
+        assert_eq!(v.reflect(&n), Vector::<f64>::new(1, 1, 0));
+
+        let s2 = 2.0f64.sqrt() / 2.0;
+        let v: Vector<f64> = Vector::new(0, -1, 0);
+        let n: Vector<f64> = Vector::new(s2, s2, 0.);
+        assert_relative_eq!(v.reflect(&n), Vector::<f64>::new(1, 0, 0));
     }
 }
