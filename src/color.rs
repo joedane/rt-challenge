@@ -8,8 +8,8 @@ pub struct Color {
 }
 
 impl Color {
-    pub fn new(red: f32, green: f32, blue: f32) -> Self {
-        Self { red, green, blue }
+    pub fn new<P: Into<f32>>(red: P, green: P, blue: P) -> Self {
+        Self { red: red.into(), green: green.into(), blue: blue.into() }
     }
 }
 

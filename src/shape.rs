@@ -5,13 +5,13 @@ use std::cmp::{Eq, Ord, PartialEq, PartialOrd, Reverse};
 use std::collections::BinaryHeap;
 use std::ops::{Add, AddAssign};
 
-struct Ray<T: Float + std::ops::AddAssign> {
+pub struct Ray<T: Float + std::ops::AddAssign> {
     o: Point<T>,
     d: Vector<T>,
 }
 
 impl<T: Float + std::ops::AddAssign> Ray<T> {
-    fn new(o: Point<T>, d: Vector<T>) -> Self {
+    pub fn new(o: Point<T>, d: Vector<T>) -> Self {
         Ray { o, d }
     }
 
@@ -65,18 +65,24 @@ impl<T: Float + FromPrimitive> Default for Material<T> {
     }
 }
 
-pub struct Object<T: Float> {
-    shape: Box<dyn Shape<T>>,
-    material: Material<T>,
+pub struct Object<'a, T: Float> {
+    pub shape: Box<dyn Shape<T> + 'a>,
+    pub material: Material<T>,
 }
 
-struct Intersection<'a, T: Float + AddAssign> {
-    pos: T,
-    shape: &'a dyn Shape<T>,
+impl<'a, T: Float + AddAssign> Object<'a, T> {
+
+    pub fn new<S: Shape<T> + 'a>(s: S, m: Material<T>) -> Self {
+        Object { shape: Box::new(s), material: m }
+    }
+}
+pub struct Intersection<'a, T: Float + AddAssign> {
+    pub pos: T,
+    pub shape: &'a dyn Shape<T>,
 }
 
 impl<'a, T: Float + AddAssign> Intersection<'a, T> {
-    fn new<P: Into<T>>(pos: P, shape: &'a dyn Shape<T>) -> Self {
+    pub fn new<P: Into<T>>(pos: P, shape: &'a dyn Shape<T>) -> Self {
         Intersection {
             pos: pos.into(),
             shape,
@@ -108,22 +114,26 @@ impl<'a, T: Float + AddAssign> PartialEq for Intersection<'a, T> {
 }
 
 impl<'a, T: Float + AddAssign> Eq for Intersection<'a, T> {}
-struct Intersections<'a, T: Float + AddAssign> {
+pub struct Intersections<'a, T: Float + AddAssign> {
     storage: BinaryHeap<Reverse<Intersection<'a, T>>>,
 }
 
-impl<'a, T: Float + AddAssign + PartialOrd> Intersections<'a, T> {
-    fn new() -> Self {
+impl<'a, T: Float + AddAssign + PartialOrd + std::fmt::Display> Intersections<'a, T> {
+    pub fn new() -> Self {
         Self {
             storage: BinaryHeap::new(),
         }
     }
 
-    fn add(&mut self, i: Intersection<'a, T>) {
+    pub fn add(&mut self, i: Intersection<'a, T>) {
         self.storage.push(Reverse(i));
     }
 
-    fn get_hit(&self) -> Option<&Intersection<'a, T>> {
+    pub fn len(&self) -> usize {
+        self.storage.len()
+    }
+
+    pub fn get_hit(&self) -> Option<&Intersection<'a, T>> {
         if self.storage.len() == 0 {
             None
         } else {
@@ -134,23 +144,31 @@ impl<'a, T: Float + AddAssign + PartialOrd> Intersections<'a, T> {
             }
         }
     }
+
+    pub fn at_p(&self, p: T) -> bool {
+        self.storage.iter().any(|item| item.0.pos == p)
+    }
+
+    pub fn get_ts(&self) -> Vec<T> {
+        self.storage.iter().map(|item| item.0.pos).collect()
+    }
 }
 
-enum Hit<T> {
+pub enum Hit<T> {
     None,
     One(T),
     Two(T, T),
 }
 
 impl<T: Float> Hit<T> {
-    fn is_some(&self) -> bool {
+    pub fn is_some(&self) -> bool {
         match self {
             Hit::None => false,
             _ => true,
         }
     }
 
-    fn is_none(&self) -> bool {
+    pub fn is_none(&self) -> bool {
         !self.is_some()
     }
     fn at_p<P: Into<T>>(&self, p: P) -> bool {
@@ -174,7 +192,7 @@ impl<T: Float + std::ops::AddAssign> Sphere<T> {
         }
     }
 
-    fn set_transform(&mut self, xf: Matrix<T>) {
+    pub fn set_transform(&mut self, xf: Matrix<T>) {
         self.xf = xf;
     }
 }
