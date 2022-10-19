@@ -26,6 +26,10 @@ impl<T: Float> Point<T> {
             z: z.into(),
         }
     }
+
+    pub fn at_origin() -> Self {
+        Self::new(T::zero(), T::zero(), T::zero())
+    }
 }
 
 impl<T: Float + AbsDiffEq> AbsDiffEq for Point<T>

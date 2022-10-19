@@ -24,7 +24,7 @@ impl<T: Float + std::ops::AddAssign> Ray<T> {
     }
 }
 
-pub trait Shape<T: Float + std::ops::AddAssign> {
+pub trait Shape<T: Float + std::ops::AddAssign + std::fmt::Debug> {
     fn local_intersect(&self, r: &Ray<T>) -> Hit<T>;
 
     fn local_normal(&self, at: Point<T>) -> Vector<T>;
@@ -32,7 +32,9 @@ pub trait Shape<T: Float + std::ops::AddAssign> {
     fn get_transform(&self) -> &Matrix<T>;
 
     fn intersect(&self, r: &Ray<T>) -> Hit<T> {
-        let local_ray = r.transform(self.get_transform());
+        // optimize?
+        let ixf = self.get_transform().invert();
+        let local_ray = r.transform(&ixf);
         self.local_intersect(&local_ray)
     }
 
@@ -70,7 +72,7 @@ pub struct Object<'a, T: Float> {
     pub material: Material<T>,
 }
 
-impl<'a, T: Float + AddAssign> Object<'a, T> {
+impl<'a, T: Float + AddAssign + std::fmt::Debug> Object<'a, T> {
 
     pub fn new<S: Shape<T> + 'a>(s: S, m: Material<T>) -> Self {
         Object { shape: Box::new(s), material: m }
@@ -203,23 +205,23 @@ impl<T: Float + AddAssign> Default for Sphere<T> {
     }
 }
 
-impl<T: Float + std::ops::AddAssign> Shape<T> for Sphere<T> {
+impl<T: Float + AddAssign + std::fmt::Debug> Shape<T> for Sphere<T> {
     fn get_transform(&self) -> &Matrix<T> {
         &self.xf
     }
 
     fn local_intersect(&self, r: &Ray<T>) -> Hit<T> {
-        let s = r.o - Point::new(T::zero(), T::zero(), T::zero());
+        let s = r.o - Point::at_origin();
         let a = Vector::dot(r.d, r.d);
         let b = Vector::dot(r.d, s);
         let b = b + b;
-        let c = Vector::dot(s, s) - T::from(1.0f32).unwrap();
-        let discrim = b * b - T::from(4.0f32).unwrap() * a * c;
+        let c = Vector::dot(s, s) - T::one();
+        let discrim = b * b - T::from(4).unwrap() * a * c;
         if discrim < T::zero() {
             Hit::None
         } else {
-            let t1 = (-b - discrim.sqrt()) / (T::from(2.0f64).unwrap() / a);
-            let t2 = (-b + discrim.sqrt()) / (T::from(2.0f64).unwrap() / a);
+            let t1 = (-b - discrim.sqrt()) / (T::from(2).unwrap() * a);
+            let t2 = (-b + discrim.sqrt()) / (T::from(2).unwrap() * a);
             if t1 == t2 {
                 Hit::One(t1)
             } else {
@@ -321,6 +323,18 @@ mod test {
         assert_eq!(r2.d, Vector::<f64>::new(0, 3, 0));
     }
 
+    #[test]
+    fn test_sphere_intersect() {
+        let mut s = Sphere::default();
+        let ray: Ray<f64> = Ray::new(Point::new(0, 0, -5), Vector::new(0, 0, 1));
+        s.set_transform(TransformBuilder::new().scaling(2, 2, 2).finish());
+        if let Hit::Two(h1, h2) = s.intersect(&ray) {
+            assert!((h1 == 3.0 || h1 == 7.0) && (h2 == 3.0 || h2 == 7.0));
+        } else {
+            panic!();
+        }
+    }
+    
     #[test]
     fn test_sphere_normal() {
         let mut s: Sphere<f64> = Sphere::new();
