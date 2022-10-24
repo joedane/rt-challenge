@@ -3,28 +3,27 @@ use crate::vec::{Matrix, Point, Vector};
 use num_traits::{Float, FromPrimitive};
 use std::cmp::{Eq, Ord, PartialEq, PartialOrd, Reverse};
 use std::collections::BinaryHeap;
-use std::ops::{Add, AddAssign};
 
-pub struct Ray<T: Float + std::ops::AddAssign> {
-    o: Point<T>,
-    d: Vector<T>,
+pub struct Ray<T> {
+    pub o: Point<T>,
+    pub d: Vector<T>,
 }
 
-impl<T: Float + std::ops::AddAssign> Ray<T> {
+impl<T: Float > Ray<T> {
     pub fn new(o: Point<T>, d: Vector<T>) -> Self {
         Ray { o, d }
     }
 
-    fn position<P: Into<T>>(&self, t: P) -> Point<T> {
+    pub fn position<P: Into<T>>(&self, t: P) -> Point<T> {
         self.o + self.d * t.into()
     }
 
-    fn transform(&self, xf: &Matrix<T>) -> Ray<T> {
+    pub fn transform(&self, xf: &Matrix<T>) -> Ray<T> {
         Ray::new(xf * self.o, xf * self.d)
     }
 }
 
-pub trait Shape<T: Float + std::ops::AddAssign + std::fmt::Debug> {
+pub trait Shape<T: Float> {
     fn local_intersect(&self, r: &Ray<T>) -> Hit<T>;
 
     fn local_normal(&self, at: Point<T>) -> Vector<T>;
@@ -38,16 +37,17 @@ pub trait Shape<T: Float + std::ops::AddAssign + std::fmt::Debug> {
         self.local_intersect(&local_ray)
     }
 
-    fn normal(&self, at: &Point<T>) -> Vector<T> {
+    fn normal(&self, at: Point<T>) -> Vector<T> {
         let xf = self.get_transform().invert();
-        let local_point = &xf * (*at);
+        let local_point = &xf * at;
         let local_normal = self.local_normal(local_point);
         let world_normal = &(xf.transpose()) * local_normal;
         world_normal.normalize()
     }
 }
 
-pub struct Material<T: Float> {
+#[derive(Clone, Copy)]
+pub struct Material<T> {
     pub color: Color,
     pub ambient: T,
     pub diffuse: T,
@@ -67,32 +67,42 @@ impl<T: Float + FromPrimitive> Default for Material<T> {
     }
 }
 
-pub struct Object<'a, T: Float> {
+pub struct Object<'a, T> {
     pub shape: Box<dyn Shape<T> + 'a>,
     pub material: Material<T>,
 }
 
-impl<'a, T: Float + AddAssign + std::fmt::Debug> Object<'a, T> {
+impl<'a, T: Float> Object<'a, T> {
 
     pub fn new<S: Shape<T> + 'a>(s: S, m: Material<T>) -> Self {
         Object { shape: Box::new(s), material: m }
     }
 }
-pub struct Intersection<'a, T: Float + AddAssign> {
+pub struct Intersection<'a, T> {
     pub pos: T,
     pub shape: &'a dyn Shape<T>,
+    pub material: Option<Material<T>>,
 }
 
-impl<'a, T: Float + AddAssign> Intersection<'a, T> {
+impl<'a, T: Float> Intersection<'a, T> {
     pub fn new<P: Into<T>>(pos: P, shape: &'a dyn Shape<T>) -> Self {
         Intersection {
             pos: pos.into(),
             shape,
+            material: None,
+        }
+    }
+
+    pub fn new_with_material<P: Into<T>>(pos: P, shape: &'a dyn Shape<T>, material: Material<T>) -> Self {
+        Intersection {
+            pos: pos.into(),
+            shape,
+            material: Some(material),
         }
     }
 }
 
-impl<'a, T: Float + AddAssign + PartialOrd> Ord for Intersection<'a, T> {
+impl<'a, T: Float + PartialOrd> Ord for Intersection<'a, T> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         match self.pos.partial_cmp(&other.pos) {
             None => {
@@ -103,24 +113,24 @@ impl<'a, T: Float + AddAssign + PartialOrd> Ord for Intersection<'a, T> {
     }
 }
 
-impl<'a, T: Float + AddAssign + PartialOrd> PartialOrd for Intersection<'a, T> {
+impl<'a, T: Float + PartialOrd> PartialOrd for Intersection<'a, T> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<'a, T: Float + AddAssign> PartialEq for Intersection<'a, T> {
+impl<'a, T: Float> PartialEq for Intersection<'a, T> {
     fn eq(&self, other: &Self) -> bool {
         self.pos == other.pos && self.pos == other.pos
     }
 }
 
-impl<'a, T: Float + AddAssign> Eq for Intersection<'a, T> {}
-pub struct Intersections<'a, T: Float + AddAssign> {
+impl<'a, T: Float> Eq for Intersection<'a, T> {}
+pub struct Intersections<'a, T> {
     storage: BinaryHeap<Reverse<Intersection<'a, T>>>,
 }
 
-impl<'a, T: Float + AddAssign + PartialOrd + std::fmt::Display> Intersections<'a, T> {
+impl<'a, T: Float + PartialOrd> Intersections<'a, T> {
     pub fn new() -> Self {
         Self {
             storage: BinaryHeap::new(),
@@ -183,11 +193,11 @@ impl<T: Float> Hit<T> {
     }
 }
 
-pub struct Sphere<T: Float> {
+pub struct Sphere<T> {
     xf: Matrix<T>,
 }
 
-impl<T: Float + std::ops::AddAssign> Sphere<T> {
+impl<T: Float> Sphere<T> {
     pub fn new() -> Self {
         Sphere {
             xf: Matrix::identity(),
@@ -199,13 +209,13 @@ impl<T: Float + std::ops::AddAssign> Sphere<T> {
     }
 }
 
-impl<T: Float + AddAssign> Default for Sphere<T> {
+impl<T: Float> Default for Sphere<T> {
     fn default() -> Self {
         Sphere::new()
     }
 }
 
-impl<T: Float + AddAssign + std::fmt::Debug> Shape<T> for Sphere<T> {
+impl<T: Float> Shape<T> for Sphere<T> {
     fn get_transform(&self) -> &Matrix<T> {
         &self.xf
     }
@@ -339,21 +349,21 @@ mod test {
     fn test_sphere_normal() {
         let mut s: Sphere<f64> = Sphere::new();
 
-        let n = s.normal(&Point::<f64>::new(1, 0, 0));
+        let n = s.normal(Point::<f64>::new(1, 0, 0));
         assert_eq!(n, Vector::new(1, 0, 0));
 
-        let n = s.normal(&Point::<f64>::new(0, 1, 0));
+        let n = s.normal(Point::<f64>::new(0, 1, 0));
         assert_eq!(n, Vector::new(0, 1, 0));
 
-        let n = s.normal(&Point::<f64>::new(0, 0, 1));
+        let n = s.normal(Point::<f64>::new(0, 0, 1));
         assert_eq!(n, Vector::new(0, 0, 1));
 
         let r3 = 3.0.sqrt() / 3.0;
-        let n = s.normal(&Point::<f64>::new(r3, r3, r3));
+        let n = s.normal(Point::<f64>::new(r3, r3, r3));
         assert_eq!(n, Vector::new(r3, r3, r3));
 
         s.set_transform(TransformBuilder::new().translate(0, 1, 0).finish());
-        let n = s.normal(&Point::new(0., 1.70711, -0.70711));
+        let n = s.normal(Point::new(0., 1.70711, -0.70711));
         assert_relative_eq!(n, Vector::new(0., 0.70711, -0.70711), epsilon = 0.00001);
 
         s.set_transform(
@@ -364,7 +374,7 @@ mod test {
         );
         let r2 = 2.0.sqrt() / 2.0;
 
-        let n = s.normal(&Point::new(0., r2, -r2));
+        let n = s.normal(Point::new(0., r2, -r2));
         assert_relative_eq!(n, Vector::new(0., 0.97014, -0.24254), epsilon = 0.00001);
     }
 }

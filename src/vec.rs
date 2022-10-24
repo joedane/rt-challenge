@@ -2,17 +2,17 @@ use approx::{AbsDiffEq, RelativeEq};
 use itertools::join;
 use num_integer::Roots;
 use num_traits::float::Float;
-use std::{fmt::Display, ops::AddAssign};
+use std::{fmt::Display};
 
 #[derive(Debug, Copy, Clone)]
-pub struct Point<T: Float> {
+pub struct Point<T> {
     x: T,
     y: T,
     z: T,
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct Vector<T: Float> {
+pub struct Vector<T> {
     x: T,
     y: T,
     z: T,
@@ -142,17 +142,6 @@ impl<T: Float> std::ops::Sub<Vector<T>> for Point<T> {
     }
 }
 
-/*
-const EPSILON: f32 = 0.00001;
-
-impl<T: Num + Copy + Signed> PartialEq for Point<T> {
-
-    fn eq(&self, other: &Self) -> bool {
-        let _diff = num_traits::sign::abs(self.x - other.x);
-        false
-    }
-}
-*/
 
 impl<T: Float> Vector<T> {
     pub fn new<P: Into<T>>(x: P, y: P, z: P) -> Self {
@@ -262,12 +251,12 @@ where
 }
 
 #[derive(Debug)]
-pub struct Matrix<T: Float> {
+pub struct Matrix<T> {
     size: usize,
     storage: Vec<T>,
 }
 
-impl<T: Float + std::ops::AddAssign> Matrix<T> {
+impl<T: Float> Matrix<T> {
     fn new<P: Into<T>>(v: Vec<P>) -> Self {
         let size = v.len().sqrt();
         let m = Matrix {
@@ -317,7 +306,7 @@ impl<T: Float + std::ops::AddAssign> Matrix<T> {
         } else {
             let mut det: T = T::zero();
             for i in 0..self.size {
-                det += self.get(0, i) * self.cofactor(0, i);
+                det = det + self.get(0, i) * self.cofactor(0, i);
             }
             det
         }
@@ -441,7 +430,7 @@ impl<T: Float> PartialEq for Matrix<T> {
     }
 }
 
-impl<T: Float + std::ops::AddAssign> std::ops::Mul<Vector<T>> for &Matrix<T> {
+impl<T: Float> std::ops::Mul<Vector<T>> for &Matrix<T> {
     type Output = Vector<T>;
 
     fn mul(self, rhs: Vector<T>) -> Self::Output {
@@ -452,7 +441,7 @@ impl<T: Float + std::ops::AddAssign> std::ops::Mul<Vector<T>> for &Matrix<T> {
     }
 }
 
-impl<T: Float + std::ops::AddAssign> std::ops::Mul<Point<T>> for &Matrix<T> {
+impl<T: Float> std::ops::Mul<Point<T>> for &Matrix<T> {
     type Output = Point<T>;
 
     fn mul(self, rhs: Point<T>) -> Self::Output {
@@ -472,7 +461,7 @@ impl<T: Float + std::ops::AddAssign> std::ops::Mul<Point<T>> for &Matrix<T> {
     }
 }
 
-impl<T: Float + AddAssign> std::ops::Mul for &Matrix<T> {
+impl<T: Float> std::ops::Mul for &Matrix<T> {
     type Output = Matrix<T>;
 
     fn mul(self, rhs: Self) -> Self::Output {
@@ -481,7 +470,7 @@ impl<T: Float + AddAssign> std::ops::Mul for &Matrix<T> {
             for col in 0..self.size {
                 let mut val = T::zero();
                 for i in 0..self.size {
-                    val += self.get(row, i) * rhs.get(i, col);
+                    val = val + self.get(row, i) * rhs.get(i, col);
                 }
                 v.push(val);
             }
@@ -490,11 +479,11 @@ impl<T: Float + AddAssign> std::ops::Mul for &Matrix<T> {
     }
 }
 
-pub struct TransformBuilder<T: Float + std::ops::AddAssign> {
+pub struct TransformBuilder<T: Float> {
     xf: Matrix<T>,
 }
 
-impl<T: Float + std::ops::AddAssign> TransformBuilder<T> {
+impl<T: Float> TransformBuilder<T> {
     
     pub fn new() -> Self {
         TransformBuilder {
@@ -504,44 +493,37 @@ impl<T: Float + std::ops::AddAssign> TransformBuilder<T> {
 
     pub fn translate<P: Into<T>>(self, x: P, y: P, z: P) -> Self {
         TransformBuilder {
-            xf: &Matrix::make_translation(x.into(), y.into(), z.into()) * &self.xf,
+            xf: &Matrix::make_translation(x, y, z) * &self.xf,
         }
     }
 
     pub fn scaling<P: Into<T>>(self, x: P, y: P, z: P) -> Self {
         TransformBuilder {
-            xf: &Matrix::make_scaling(x.into(), y.into(), z.into()) * &self.xf,
+            xf: &Matrix::make_scaling(x, y, z) * &self.xf,
         }
     }
 
     pub fn shearing<P: Into<T>>(self, xy: P, xz: P, yx: P, yz: P, zx: P, zy: P) -> Self {
         TransformBuilder {
-            xf: &Matrix::make_shearing(
-                xy.into(),
-                xz.into(),
-                yx.into(),
-                yz.into(),
-                zx.into(),
-                zy.into(),
-            ) * &self.xf,
+            xf: &Matrix::make_shearing(xy, xz, yx, yz, zx, zy) * &self.xf,
         }
     }
 
     pub fn rotation_x<P: Into<T>>(self, r: P) -> Self {
         TransformBuilder {
-            xf: &Matrix::make_rotation_x(r.into()) * &self.xf,
+            xf: &Matrix::make_rotation_x(r) * &self.xf,
         }
     }
 
     pub fn rotation_y<P: Into<T>>(self, r: P) -> Self {
         TransformBuilder {
-            xf: &Matrix::make_rotation_y(r.into()) * &self.xf,
+            xf: &Matrix::make_rotation_y(r) * &self.xf,
         }
     }
 
     pub fn rotation_z<P: Into<T>>(self, r: P) -> Self {
         TransformBuilder {
-            xf: &Matrix::make_rotation_z(r.into()) * &self.xf,
+            xf: &Matrix::make_rotation_z(r) * &self.xf,
         }
     }
 
