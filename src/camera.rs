@@ -1,4 +1,4 @@
-use crate::vec::Matrix;
+use crate::vec::{Matrix, TransformBuilder};
 use crate::MyFloat;
 use crate::Point;
 use crate::Ray;
@@ -37,6 +37,10 @@ impl<T: MyFloat> Camera<T> {
         }
     }
 
+    pub (crate) fn set_transform(&mut self, xf: Matrix<T>) {
+        self.xf = xf;
+    }
+
     fn ray_for_pixel(&self, x: usize, y: usize) -> Ray<T> {
         let xoffset = (x as f64 + 0.5) * self.pixel_size;
         let yoffset = (y as f64 + 0.5) * self.pixel_size;
@@ -71,7 +75,19 @@ mod test {
 
         let c: Camera<f64> = Camera::new(201, 101, std::f64::consts::PI / 2.0);
         let r = c.ray_for_pixel(100, 50);
-        assert_eq!(r.o, Point::<f64>::new(0, 0, 0));
-        assert_eq!(r.d, Vector::<f64>::new(0, 0, -1));
+        assert_relative_eq!(r.o, Point::<f64>::new(0, 0, 0), epsilon=0.0001);
+        assert_relative_eq!(r.d, Vector::<f64>::new(0, 0, -1), epsilon=0.0001);
+   
+        let r = c.ray_for_pixel(0, 0);
+        assert_relative_eq!(r.o, Point::<f64>::new(0, 0, 0));
+        assert_relative_eq!(r.d, Vector::<f64>::new(0.66519, 0.33259, -0.66851), epsilon=0.00001);
+     
+        let mut c: Camera<f64> = Camera::new(201, 101, std::f64::consts::PI / 2.0);
+        let s2 = 2.0f64.sqrt() / 2.0;
+        c.xf = TransformBuilder::new().translate(0, -2, 5).rotation_y(std::f64::consts::PI / 4.0).finish();
+        let r = c.ray_for_pixel(100, 50);
+        assert_relative_eq!(r.o, Point::<f64>::new(0, 2, -5));
+        assert_relative_eq!(r.d, Vector::<f64>::new(s2, 0., -s2), epsilon=0.00001);
+
     }
 }
