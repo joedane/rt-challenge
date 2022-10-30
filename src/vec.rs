@@ -463,11 +463,7 @@ impl<T: Float> std::ops::Mul<Point<T>> for &Matrix<T> {
     }
 }
 
-<<<<<<< HEAD
 impl<T: Float> std::ops::Mul for &Matrix<T> {
-=======
-impl<T: Float + AddAssign> std::ops::Mul for &Matrix<T> {
->>>>>>> 5f90222 (Revised matrix multiplication seems to be working)
     type Output = Matrix<T>;
 
     fn mul(self, rhs: Self) -> Self::Output {
@@ -497,7 +493,6 @@ impl<T: Float> TransformBuilder<T> {
         }
     }
 
-<<<<<<< HEAD
     pub fn translate<P: Into<T>>(self, x: P, y: P, z: P) -> Self {
         TransformBuilder {
             xf: &Matrix::make_translation(x, y, z) * &self.xf,
@@ -531,16 +526,6 @@ impl<T: Float> TransformBuilder<T> {
     pub fn rotation_z<P: Into<T>>(self, r: P) -> Self {
         TransformBuilder {
             xf: &Matrix::make_rotation_z(r) * &self.xf,
-=======
-    fn translate<P: Into<T>>(self, x: P, y: P, z: P) -> Self {
-        let m = Matrix::make_translation(x, y, z);
-        if let Some(xf) = self.xf {
-            TransformationBuilder {
-                xf: Some(&xf * &m) 
-            }   
-        } else {
-            TransformationBuilder { xf: Some(m) }
->>>>>>> 5f90222 (Revised matrix multiplication seems to be working)
         }
     }
 
