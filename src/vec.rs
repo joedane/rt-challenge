@@ -1,24 +1,26 @@
 use approx::{AbsDiffEq, RelativeEq};
-use itertools::join;
+use itertools::{join};
 use num_integer::Roots;
 use num_traits::float::Float;
 use std::{fmt::Display};
 
+use crate::MyFloat;
+
 #[derive(Debug, Copy, Clone)]
 pub struct Point<T> {
-    x: T,
-    y: T,
-    z: T,
+    pub x: T,
+    pub y: T,
+    pub z: T,
 }
 
 #[derive(Debug, Copy, Clone)]
 pub struct Vector<T> {
-    x: T,
-    y: T,
-    z: T,
+    pub x: T,
+    pub y: T,
+    pub z: T,
 }
 
-impl<T: Float> Point<T> {
+impl<T: MyFloat> Point<T> {
     pub fn new<P: Into<T>>(x: P, y: P, z: P) -> Self {
         Self {
             x: x.into(),
@@ -32,7 +34,7 @@ impl<T: Float> Point<T> {
     }
 }
 
-impl<T: Float + AbsDiffEq> AbsDiffEq for Point<T>
+impl<T: MyFloat> AbsDiffEq for Point<T>
 where
     T::Epsilon: Copy,
 {
@@ -48,7 +50,7 @@ where
             && T::abs_diff_eq(&self.z, &other.z, epsilon)
     }
 }
-impl<T: Float + RelativeEq> RelativeEq for Point<T>
+impl<T: MyFloat> RelativeEq for Point<T>
 where
     T::Epsilon: Copy,
 {
@@ -68,7 +70,7 @@ where
     }
 }
 
-impl<T: Float + AbsDiffEq> AbsDiffEq for Vector<T>
+impl<T: MyFloat> AbsDiffEq for Vector<T>
 where
     T::Epsilon: Copy,
 {
@@ -84,7 +86,7 @@ where
             && T::abs_diff_eq(&self.z, &other.z, epsilon)
     }
 }
-impl<T: Float + RelativeEq> RelativeEq for Vector<T>
+impl<T: MyFloat> RelativeEq for Vector<T>
 where
     T::Epsilon: Copy,
 {
@@ -104,13 +106,44 @@ where
     }
 }
 
-impl<T: Float> std::cmp::PartialEq for Point<T> {
+impl<T: MyFloat> AbsDiffEq for Matrix<T> where T::Epsilon: Copy {
+
+    type Epsilon = T::Epsilon;
+
+    fn default_epsilon() -> Self::Epsilon {
+        T::default_epsilon()
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+        self.storage.iter().zip(&other.storage).all(|(this, that)| T::abs_diff_eq(this, that, epsilon))
+    }
+}
+
+impl<T: MyFloat> RelativeEq for Matrix<T>
+where
+    T::Epsilon: Copy,
+{
+    fn default_max_relative() -> Self::Epsilon {
+        T::default_max_relative()
+    }
+
+    fn relative_eq(
+        &self,
+        other: &Self,
+        epsilon: Self::Epsilon,
+        max_relative: Self::Epsilon,
+    ) -> bool {
+        self.storage.iter().zip(&other.storage).all(|(this, that)| T::relative_eq(this, that, epsilon, max_relative))
+    }
+}
+
+impl<T: MyFloat> std::cmp::PartialEq for Point<T> {
     fn eq(&self, rhs: &Self) -> bool {
         self.x == rhs.x && self.y == rhs.y && self.z == rhs.z
     }
 }
 
-impl<T: Float> std::ops::Neg for Point<T> {
+impl<T: MyFloat> std::ops::Neg for Point<T> {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
@@ -118,7 +151,7 @@ impl<T: Float> std::ops::Neg for Point<T> {
     }
 }
 
-impl<T: Float> std::ops::Add<Vector<T>> for Point<T> {
+impl<T: MyFloat> std::ops::Add<Vector<T>> for Point<T> {
     type Output = Point<T>;
 
     fn add(self, rhs: Vector<T>) -> Self::Output {
@@ -126,7 +159,7 @@ impl<T: Float> std::ops::Add<Vector<T>> for Point<T> {
     }
 }
 
-impl<T: Float> std::ops::Sub<Point<T>> for Point<T> {
+impl<T: MyFloat> std::ops::Sub<Point<T>> for Point<T> {
     type Output = Vector<T>;
 
     fn sub(self, rhs: Self) -> Self::Output {
@@ -134,7 +167,7 @@ impl<T: Float> std::ops::Sub<Point<T>> for Point<T> {
     }
 }
 
-impl<T: Float> std::ops::Sub<Vector<T>> for Point<T> {
+impl<T: MyFloat> std::ops::Sub<Vector<T>> for Point<T> {
     type Output = Point<T>;
 
     fn sub(self, rhs: Vector<T>) -> Self::Output {
@@ -142,7 +175,7 @@ impl<T: Float> std::ops::Sub<Vector<T>> for Point<T> {
     }
 }
 
-impl<T: Float> Vector<T> {
+impl<T: MyFloat> Vector<T> {
     pub fn new<P: Into<T>>(x: P, y: P, z: P) -> Self {
         Self {
             x: x.into(),
@@ -159,13 +192,13 @@ impl<T: Float> Vector<T> {
     }
 }
 
-impl<T: Float> std::cmp::PartialEq for Vector<T> {
+impl<T: MyFloat> std::cmp::PartialEq for Vector<T> {
     fn eq(&self, rhs: &Self) -> bool {
         self.x == rhs.x && self.y == rhs.y && self.z == rhs.z
     }
 }
 
-impl<T: Float> std::ops::Neg for Vector<T> {
+impl<T: MyFloat> std::ops::Neg for Vector<T> {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
@@ -173,7 +206,7 @@ impl<T: Float> std::ops::Neg for Vector<T> {
     }
 }
 
-impl<T: Float> std::ops::Add for Vector<T> {
+impl<T: MyFloat> std::ops::Add for Vector<T> {
     type Output = Self;
 
     fn add(self, other: Self) -> Self {
@@ -185,7 +218,7 @@ impl<T: Float> std::ops::Add for Vector<T> {
     }
 }
 
-impl<T: Float> std::ops::Add<Point<T>> for Vector<T> {
+impl<T: MyFloat> std::ops::Add<Point<T>> for Vector<T> {
     type Output = Point<T>;
 
     fn add(self, rhs: Point<T>) -> Self::Output {
@@ -193,7 +226,7 @@ impl<T: Float> std::ops::Add<Point<T>> for Vector<T> {
     }
 }
 
-impl<T: Float> std::ops::Sub for Vector<T> {
+impl<T: MyFloat> std::ops::Sub for Vector<T> {
     type Output = Vector<T>;
 
     fn sub(self, rhs: Vector<T>) -> Self::Output {
@@ -203,7 +236,7 @@ impl<T: Float> std::ops::Sub for Vector<T> {
 
 impl<T> std::ops::Mul<T> for Vector<T>
 where
-    T: Float,
+    T: MyFloat,
 {
     type Output = Self;
 
@@ -212,9 +245,9 @@ where
     }
 }
 
-impl<T> std::ops::Div<T> for Vector<T>
+impl<T: MyFloat> std::ops::Div<T> for Vector<T>
 where
-    T: Float,
+    T: MyFloat,
 {
     type Output = Self;
 
@@ -225,7 +258,7 @@ where
 
 impl<T> Vector<T>
 where
-    T: Float,
+    T: MyFloat,
 {
     pub fn magnitude(&self) -> T {
         (self.x * self.x + self.y * self.y + self.z * self.z).sqrt()
@@ -258,8 +291,8 @@ pub struct Matrix<T> {
     storage: Vec<T>,
 }
 
-impl<T: Float> Matrix<T> {
-    fn new<P: Into<T>>(v: Vec<P>) -> Self {
+impl<T: MyFloat> Matrix<T> {
+    pub fn new<P: Into<T>>(v: Vec<P>) -> Self {
         let size = v.len().sqrt();
         let m = Matrix {
             storage: v.into_iter().map(|v| v.into()).collect(),
@@ -287,7 +320,7 @@ impl<T: Float> Matrix<T> {
         Matrix::new(v)
     }
 
-    fn submatrix(&self, row: usize, col: usize) -> Matrix<T> {
+    pub fn submatrix(&self, row: usize, col: usize) -> Matrix<T> {
         assert!(self.size > 0);
         let mut v = Vec::with_capacity((self.size - 1) * (self.size - 1));
         for i in 0..self.size {
@@ -353,7 +386,7 @@ impl<T: Float> Matrix<T> {
         self.storage[row * self.size + col] = val;
     }
 
-    fn make_translation<P: Into<T>>(x: P, y: P, z: P) -> Matrix<T> {
+    pub fn make_translation<P: Into<T>>(x: P, y: P, z: P) -> Matrix<T> {
         let mut m = Matrix::identity();
         m.set(0, 3, x.into());
         m.set(1, 3, y.into());
@@ -361,7 +394,7 @@ impl<T: Float> Matrix<T> {
         m
     }
 
-    fn make_scaling<P: Into<T>>(x: P, y: P, z: P) -> Matrix<T> {
+    pub fn make_scaling<P: Into<T>>(x: P, y: P, z: P) -> Matrix<T> {
         let mut m = Matrix::identity();
         m.set(0, 0, x.into());
         m.set(1, 1, y.into());
@@ -369,7 +402,7 @@ impl<T: Float> Matrix<T> {
         m
     }
 
-    fn make_rotation_x<P: Into<T>>(r: P) -> Matrix<T> {
+    pub fn make_rotation_x<P: Into<T>>(r: P) -> Matrix<T> {
         let mut m = Matrix::identity();
         let r: T = r.into();
         m.set(1, 1, r.cos());
@@ -379,7 +412,7 @@ impl<T: Float> Matrix<T> {
         m
     }
 
-    fn make_rotation_y<P: Into<T>>(r: P) -> Matrix<T> {
+   pub fn make_rotation_y<P: Into<T>>(r: P) -> Matrix<T> {
         let mut m = Matrix::identity();
         let r: T = r.into();
         m.set(0, 0, r.cos());
@@ -389,7 +422,7 @@ impl<T: Float> Matrix<T> {
         m
     }
 
-    fn make_rotation_z<P: Into<T>>(r: P) -> Matrix<T> {
+    pub fn make_rotation_z<P: Into<T>>(r: P) -> Matrix<T> {
         let mut m = Matrix::identity();
         let r: T = r.into();
         m.set(0, 0, r.cos());
@@ -399,7 +432,7 @@ impl<T: Float> Matrix<T> {
         m
     }
 
-    fn make_shearing<P: Into<T>>(xy: P, xz: P, yx: P, yz: P, zx: P, zy: P) -> Matrix<T> {
+    pub fn make_shearing<P: Into<T>>(xy: P, xz: P, yx: P, yz: P, zx: P, zy: P) -> Matrix<T> {
         let mut m = Matrix::identity();
         m.set(0, 1, xy.into());
         m.set(0, 2, xz.into());
@@ -411,7 +444,7 @@ impl<T: Float> Matrix<T> {
     }
 }
 
-impl<T: Float + Display> Display for Matrix<T> {
+impl<T: MyFloat + Display> Display for Matrix<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for row in 0..self.size {
             let joined = join(
@@ -426,13 +459,13 @@ impl<T: Float + Display> Display for Matrix<T> {
     }
 }
 
-impl<T: Float> PartialEq for Matrix<T> {
+impl<T: MyFloat> PartialEq for Matrix<T> {
     fn eq(&self, other: &Self) -> bool {
         self.storage == other.storage
     }
 }
 
-impl<T: Float> std::ops::Mul<Vector<T>> for &Matrix<T> {
+impl<T: MyFloat> std::ops::Mul<Vector<T>> for &Matrix<T> {
     type Output = Vector<T>;
 
     fn mul(self, rhs: Vector<T>) -> Self::Output {
@@ -443,7 +476,7 @@ impl<T: Float> std::ops::Mul<Vector<T>> for &Matrix<T> {
     }
 }
 
-impl<T: Float> std::ops::Mul<Point<T>> for &Matrix<T> {
+impl<T: MyFloat> std::ops::Mul<Point<T>> for &Matrix<T> {
     type Output = Point<T>;
 
     fn mul(self, rhs: Point<T>) -> Self::Output {
@@ -463,7 +496,7 @@ impl<T: Float> std::ops::Mul<Point<T>> for &Matrix<T> {
     }
 }
 
-impl<T: Float> std::ops::Mul for &Matrix<T> {
+impl<T: MyFloat> std::ops::Mul for &Matrix<T> {
     type Output = Matrix<T>;
 
     fn mul(self, rhs: Self) -> Self::Output {
@@ -485,7 +518,7 @@ pub struct TransformBuilder<T: Float> {
     xf: Matrix<T>,
 }
 
-impl<T: Float> TransformBuilder<T> {
+impl<T: MyFloat> TransformBuilder<T> {
     
     pub fn new() -> Self {
         TransformBuilder {
@@ -591,10 +624,10 @@ mod test {
 
     #[test]
     fn test_magnitude() {
-        assert_eq!(1.0, Vector::new(1., 0., 0.).magnitude());
-        assert_eq!(1.0, Vector::new(0., 1., 0.).magnitude());
-        assert_eq!(1.0, Vector::new(0., 0., 1.).magnitude());
-        assert_eq!((14.0 as f64).sqrt(), Vector::new(1., 2., 3.).magnitude());
+        assert_eq!(1.0, Vector::<f64>::new(1, 0, 0).magnitude());
+        assert_eq!(1.0, Vector::<f64>::new(0., 1., 0.).magnitude());
+        assert_eq!(1.0, Vector::<f64>::new(0., 0., 1.).magnitude());
+        assert_eq!((14.0 as f64).sqrt(), Vector::<f64>::new(1., 2., 3.).magnitude());
     }
 
     #[test]
@@ -614,7 +647,7 @@ mod test {
     fn test_dot() {
         assert_eq!(
             20.,
-            Vector::dot(Vector::new(1., 2., 3.), Vector::new(2., 3., 4.))
+            Vector::dot(Vector::<f64>::new(1., 2., 3.), Vector::new(2., 3., 4.))
         );
     }
 
@@ -709,7 +742,7 @@ mod test {
         assert_eq!(-25., m.cofactor(1, 0));
     }
 
-    fn check_matrix<T: Float + Display + std::ops::AddAssign>(
+    fn check_matrix<T: MyFloat + Display + std::ops::AddAssign>(
         m: Matrix<T>,
         m_check: Matrix<T>,
     ) -> Result<(), <T as num_traits::Num>::FromStrRadixErr> {

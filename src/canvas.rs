@@ -1,38 +1,41 @@
-
 use crate::color::Color;
 use image::{ImageBuffer, Rgb};
+use tracing::debug;
 
 pub struct Canvas<const W: usize, const H: usize> {
-    storage: [[Color; W] ; H]
+    storage: [[Color; W]; H],
 }
 
+impl<const W: usize, const H: usize> std::fmt::Debug for Canvas<W, H> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("Canvas [{}, {}]", W, H))
+    }
+}
 impl<const W: usize, const H: usize> Canvas<W, H> {
-
-    fn new() -> Self {
-        Canvas { storage: [[Color::new(0.,0.,0.); W]; H]}    
+    pub fn new() -> Self {
+        Canvas {
+            storage: [[Color::new(0., 0., 0.); W]; H],
+        }
     }
 
-    fn foo(&self) {
-        println!("width: {}", W);
-        println!("height: {}", H);
-    }
-
-    fn set(&mut self, x: usize, y: usize, c: Color) {
+    pub fn set(&mut self, x: usize, y: usize, c: Color) {
         self.storage[y][x] = c;
     }
 
-    fn get(&self, x: usize, y: usize) -> Color {
+    pub fn get(&self, x: usize, y: usize) -> Color {
         self.storage[y][x]
     }
 
-    fn write<P: AsRef<std::path::Path>>(&self, p: P) {
+    #[tracing::instrument]
+    pub fn write<P: AsRef<std::path::Path> + std::fmt::Debug>(&self, p: P) {
         let mut buf = ImageBuffer::new(W as u32, H as u32);
+        debug!("writing file ...\n");
         for (x, y, p) in buf.enumerate_pixels_mut() {
             let c = self.get(x as usize, y as usize);
             *p = Rgb([c.red as u8, c.green as u8, c.blue as u8]);
         }
         buf.save(p).unwrap();
-    } 
+    }
 }
 
 #[cfg(test)]
@@ -48,8 +51,6 @@ mod test {
                 c.set(i, j, Color::new(j as f32, 0., 0.));
             }
         }
-        c.foo();
         c.write("testfile.jpg");
     }
 }
-

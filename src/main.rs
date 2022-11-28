@@ -1,20 +1,22 @@
 #![allow(dead_code)]
 
-mod vec;
+mod camera;
 mod canvas;
 mod color;
 mod shape;
-mod camera;
+mod vec;
 
+use approx::{AbsDiffEq, RelativeEq};
 use color::Color;
 use shape::{Hit, Intersection, Intersections, Material, Object, Ray, Sphere};
 use vec::{Point, TransformBuilder, Vector};
 
 use num_traits::{float::Float, FromPrimitive};
+use tracing::Level;
 
-trait MyFloat: Float + FromPrimitive {}
+pub trait MyFloat: Float + FromPrimitive + AbsDiffEq + RelativeEq + std::fmt::Debug {}
 
-impl<T> MyFloat for T where T: Float + FromPrimitive {}
+impl<T> MyFloat for T where T: Float + FromPrimitive + AbsDiffEq + RelativeEq + std::fmt::Debug {}
 
 #[derive(Clone, Copy)]
 struct Light<T> {
@@ -103,10 +105,22 @@ impl<'a, T: MyFloat> World<'a, T> {
         let mut is = Intersections::new();
         for o in self.objects.iter() {
             match o.shape.intersect(&ray) {
-                Hit::One(h) => is.add(Intersection::new_with_material(h, o.shape.as_ref(), o.material)),
+                Hit::One(h) => is.add(Intersection::new_with_material(
+                    h,
+                    o.shape.as_ref(),
+                    o.material,
+                )),
                 Hit::Two(h1, h2) => {
-                    is.add(Intersection::new_with_material(h1, o.shape.as_ref(), o.material));
-                    is.add(Intersection::new_with_material(h2, o.shape.as_ref(), o.material));
+                    is.add(Intersection::new_with_material(
+                        h1,
+                        o.shape.as_ref(),
+                        o.material,
+                    ));
+                    is.add(Intersection::new_with_material(
+                        h2,
+                        o.shape.as_ref(),
+                        o.material,
+                    ));
                 }
                 _ => {}
             }
@@ -121,6 +135,15 @@ impl<'a, T: MyFloat> World<'a, T> {
     fn get_obj_mut(&mut self, i: usize) -> &mut Object<'a, T> {
         self.objects.get_mut(i).unwrap()
     }
+
+    pub fn describe(&self) -> String {
+        let mut s = "World containing: ".to_string();
+        for obj in &self.objects {
+            obj.describe_into(&mut s);
+            s.push_str("\n");
+        }
+        s
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -130,13 +153,10 @@ struct HitComputations<T> {
     point: Point<T>,
     eyev: Vector<T>,
     normal: Vector<T>,
-    inside: bool
+    inside: bool,
 }
 
-fn prepare_computations<T: MyFloat>(
-    i: &Intersection<T>,
-    ray: &Ray<T>,
-) -> HitComputations<T> {
+fn prepare_computations<T: MyFloat>(i: &Intersection<T>, ray: &Ray<T>) -> HitComputations<T> {
     let point = ray.position(i.pos);
     let eyev = -ray.d;
     let mut normal = i.shape.normal(point);
@@ -147,11 +167,24 @@ fn prepare_computations<T: MyFloat>(
     } else {
         inside = false;
     }
-    HitComputations { t: i.pos, material: i.material, point, eyev, normal, inside }
+    HitComputations {
+        t: i.pos,
+        material: i.material,
+        point,
+        eyev,
+        normal,
+        inside,
+    }
 }
 
 fn shade_hit<'a, T: MyFloat>(w: &World<'a, T>, comps: HitComputations<T>) -> Color {
-    phong(comps.material.unwrap(), w.light, comps.point, comps.eyev, comps.normal)
+    phong(
+        comps.material.unwrap(),
+        w.light,
+        comps.point,
+        comps.eyev,
+        comps.normal,
+    )
 }
 
 fn color_at<'a, T: MyFloat>(w: &'a World<'a, T>, ray: Ray<T>) -> Color {
@@ -162,7 +195,18 @@ fn color_at<'a, T: MyFloat>(w: &'a World<'a, T>, ray: Ray<T>) -> Color {
     }
 }
 
-fn main() {}
+fn main() {
+    let tracing = tracing_subscriber::FmtSubscriber::builder()
+        .with_max_level(Level::TRACE)
+        .finish();
+    tracing::subscriber::set_global_default(tracing).expect("failed to set tracing subscriber");
+
+    let world: World<f64> = World::default();
+    let camera: camera::Camera<f64> = camera::Camera::default();
+    let mut canvas: canvas::Canvas<400, 400> = canvas::Canvas::new();
+    camera.render(&world, &mut canvas);
+    canvas.write("img.jpg");
+}
 
 #[cfg(test)]
 mod test {
@@ -265,9 +309,9 @@ mod test {
         let i = Intersection::new_with_material(4, o.shape.as_ref(), o.material);
         let comps = prepare_computations(&i, &ray);
         let c = shade_hit(&w, comps);
-        assert_relative_eq!(c.red, 0.38066, epsilon=0.00001);
-        assert_relative_eq!(c.green, 0.47583, epsilon=0.00001);
-        assert_relative_eq!(c.blue, 0.2855, epsilon=0.00001);
+        assert_relative_eq!(c.red, 0.38066, epsilon = 0.00001);
+        assert_relative_eq!(c.green, 0.47583, epsilon = 0.00001);
+        assert_relative_eq!(c.blue, 0.2855, epsilon = 0.00001);
 
         let mut w: World<f64> = World::default();
         w.light = Light::new(Point::new(0., 0.25, 0.), Color::new(1., 1., 1.));
@@ -276,9 +320,9 @@ mod test {
         let i = Intersection::new_with_material(0.5, o.shape.as_ref(), o.material);
         let comps = prepare_computations(&i, &ray);
         let c = shade_hit(&w, comps);
-        assert_relative_eq!(c.red, 0.90498, epsilon=0.00001);
-        assert_relative_eq!(c.green, 0.90498, epsilon=0.00001);
-        assert_relative_eq!(c.blue, 0.90498, epsilon=0.00001);
+        assert_relative_eq!(c.red, 0.90498, epsilon = 0.00001);
+        assert_relative_eq!(c.green, 0.90498, epsilon = 0.00001);
+        assert_relative_eq!(c.blue, 0.90498, epsilon = 0.00001);
 
         let w: World<f64> = World::default();
         let ray = Ray::new(Point::new(0, 0, -5), Vector::new(0, 1, 0));
@@ -287,16 +331,15 @@ mod test {
 
         let ray = Ray::new(Point::new(0, 0, -5), Vector::new(0, 0, 1));
         let c = color_at(&w, ray);
-        assert_relative_eq!(c.red, 0.38066, epsilon=0.00001);
-        assert_relative_eq!(c.green, 0.47583, epsilon=0.00001);
-        assert_relative_eq!(c.blue, 0.2855, epsilon=0.00001);
-        
+        assert_relative_eq!(c.red, 0.38066, epsilon = 0.00001);
+        assert_relative_eq!(c.green, 0.47583, epsilon = 0.00001);
+        assert_relative_eq!(c.blue, 0.2855, epsilon = 0.00001);
+
         let mut w: World<f64> = World::default();
         w.get_obj_mut(0).material.ambient = 1.0;
         w.get_obj_mut(1).material.ambient = 1.0;
         let ray = Ray::new(Point::new(0., 0., 0.75), Vector::new(0, 0, -1));
         let c = color_at(&w, ray);
         assert_eq!(c, w.get_obj(1).material.color);
-
     }
 }

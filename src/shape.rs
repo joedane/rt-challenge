@@ -1,15 +1,17 @@
 use crate::color::Color;
 use crate::vec::{Matrix, Point, Vector};
-use num_traits::{Float, FromPrimitive};
+use crate::MyFloat;
+use num_traits::FromPrimitive;
 use std::cmp::{Eq, Ord, PartialEq, PartialOrd, Reverse};
 use std::collections::BinaryHeap;
+use std::fmt::Write;
 
 pub struct Ray<T> {
     pub o: Point<T>,
     pub d: Vector<T>,
 }
 
-impl<T: Float > Ray<T> {
+impl<T: MyFloat> Ray<T> {
     pub fn new(o: Point<T>, d: Vector<T>) -> Self {
         Ray { o, d }
     }
@@ -23,12 +25,14 @@ impl<T: Float > Ray<T> {
     }
 }
 
-pub trait Shape<T: Float> {
+pub trait Shape<T: MyFloat> {
     fn local_intersect(&self, r: &Ray<T>) -> Hit<T>;
 
     fn local_normal(&self, at: Point<T>) -> Vector<T>;
 
     fn get_transform(&self) -> &Matrix<T>;
+
+    fn describe(&self) -> String;
 
     fn intersect(&self, r: &Ray<T>) -> Hit<T> {
         // optimize?
@@ -55,7 +59,7 @@ pub struct Material<T> {
     pub shininess: T,
 }
 
-impl<T: Float + FromPrimitive> Default for Material<T> {
+impl<T: MyFloat + FromPrimitive> Default for Material<T> {
     fn default() -> Self {
         Material {
             color: Color::new(1., 1., 1.),
@@ -72,10 +76,16 @@ pub struct Object<'a, T> {
     pub material: Material<T>,
 }
 
-impl<'a, T: Float> Object<'a, T> {
-
+impl<'a, T: MyFloat> Object<'a, T> {
     pub fn new<S: Shape<T> + 'a>(s: S, m: Material<T>) -> Self {
-        Object { shape: Box::new(s), material: m }
+        Object {
+            shape: Box::new(s),
+            material: m,
+        }
+    }
+
+    pub fn describe_into(&self, s: &mut String) {
+        write!(s, "Object of type {}", self.shape.describe());
     }
 }
 pub struct Intersection<'a, T> {
@@ -84,7 +94,7 @@ pub struct Intersection<'a, T> {
     pub material: Option<Material<T>>,
 }
 
-impl<'a, T: Float> Intersection<'a, T> {
+impl<'a, T: MyFloat> Intersection<'a, T> {
     pub fn new<P: Into<T>>(pos: P, shape: &'a dyn Shape<T>) -> Self {
         Intersection {
             pos: pos.into(),
@@ -93,7 +103,11 @@ impl<'a, T: Float> Intersection<'a, T> {
         }
     }
 
-    pub fn new_with_material<P: Into<T>>(pos: P, shape: &'a dyn Shape<T>, material: Material<T>) -> Self {
+    pub fn new_with_material<P: Into<T>>(
+        pos: P,
+        shape: &'a dyn Shape<T>,
+        material: Material<T>,
+    ) -> Self {
         Intersection {
             pos: pos.into(),
             shape,
@@ -102,7 +116,7 @@ impl<'a, T: Float> Intersection<'a, T> {
     }
 }
 
-impl<'a, T: Float + PartialOrd> Ord for Intersection<'a, T> {
+impl<'a, T: MyFloat + PartialOrd> Ord for Intersection<'a, T> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         match self.pos.partial_cmp(&other.pos) {
             None => {
@@ -113,24 +127,24 @@ impl<'a, T: Float + PartialOrd> Ord for Intersection<'a, T> {
     }
 }
 
-impl<'a, T: Float + PartialOrd> PartialOrd for Intersection<'a, T> {
+impl<'a, T: MyFloat + PartialOrd> PartialOrd for Intersection<'a, T> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<'a, T: Float> PartialEq for Intersection<'a, T> {
+impl<'a, T: MyFloat> PartialEq for Intersection<'a, T> {
     fn eq(&self, other: &Self) -> bool {
         self.pos == other.pos && self.pos == other.pos
     }
 }
 
-impl<'a, T: Float> Eq for Intersection<'a, T> {}
+impl<'a, T: MyFloat> Eq for Intersection<'a, T> {}
 pub struct Intersections<'a, T> {
     storage: BinaryHeap<Reverse<Intersection<'a, T>>>,
 }
 
-impl<'a, T: Float + PartialOrd> Intersections<'a, T> {
+impl<'a, T: MyFloat + PartialOrd> Intersections<'a, T> {
     pub fn new() -> Self {
         Self {
             storage: BinaryHeap::new(),
@@ -172,7 +186,7 @@ pub enum Hit<T> {
     Two(T, T),
 }
 
-impl<T: Float> Hit<T> {
+impl<T: MyFloat> Hit<T> {
     pub fn is_some(&self) -> bool {
         match self {
             Hit::None => false,
@@ -193,11 +207,21 @@ impl<T: Float> Hit<T> {
     }
 }
 
+impl<T: MyFloat> std::fmt::Debug for Hit<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::None => write!(f, "None"),
+            Self::One(arg0) => f.debug_tuple("One").field(arg0).finish(),
+            Self::Two(arg0, arg1) => f.debug_tuple("Two").field(arg0).field(arg1).finish(),
+        }
+    }
+}
+
 pub struct Sphere<T> {
     xf: Matrix<T>,
 }
 
-impl<T: Float> Sphere<T> {
+impl<T: MyFloat> Sphere<T> {
     pub fn new() -> Self {
         Sphere {
             xf: Matrix::identity(),
@@ -209,13 +233,18 @@ impl<T: Float> Sphere<T> {
     }
 }
 
-impl<T: Float> Default for Sphere<T> {
+impl<T: MyFloat> Default for Sphere<T> {
     fn default() -> Self {
         Sphere::new()
     }
 }
 
-impl<T: Float> Shape<T> for Sphere<T> {
+impl<T: MyFloat> Shape<T> for Sphere<T> {
+    fn describe(&self) -> String {
+        let s = format!("Sphere {{ origin: {:?} }}", &(self.xf) * Point::at_origin());
+        s
+    }
+
     fn get_transform(&self) -> &Matrix<T> {
         &self.xf
     }
@@ -344,7 +373,7 @@ mod test {
             panic!();
         }
     }
-    
+
     #[test]
     fn test_sphere_normal() {
         let mut s: Sphere<f64> = Sphere::new();
@@ -358,9 +387,9 @@ mod test {
         let n = s.normal(Point::<f64>::new(0, 0, 1));
         assert_eq!(n, Vector::new(0, 0, 1));
 
-        let r3 = 3.0.sqrt() / 3.0;
+        let r3 = 3.0f32.sqrt() / 3.0;
         let n = s.normal(Point::<f64>::new(r3, r3, r3));
-        assert_eq!(n, Vector::new(r3, r3, r3));
+        assert_relative_eq!(n, Vector::new(r3, r3, r3), epsilon = 0.000001);
 
         s.set_transform(TransformBuilder::new().translate(0, 1, 0).finish());
         let n = s.normal(Point::new(0., 1.70711, -0.70711));
@@ -372,9 +401,12 @@ mod test {
                 .scaling(1., 0.5, 1.)
                 .finish(),
         );
-        let r2 = 2.0.sqrt() / 2.0;
+        let r2 = 2.0f32.sqrt() / 2.0;
 
         let n = s.normal(Point::new(0., r2, -r2));
         assert_relative_eq!(n, Vector::new(0., 0.97014, -0.24254), epsilon = 0.00001);
     }
+
+    #[test]
+    fn test_camera2() {}
 }
